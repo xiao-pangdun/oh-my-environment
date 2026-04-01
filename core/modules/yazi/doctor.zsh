@@ -1,8 +1,8 @@
 # yazi doctor
 if ! (( $+commands[yazi] )); then
-  ome_error "yazi not found — file manager unavailable"
+  ome_warn "yazi not found — file manager unavailable"
   ome_info "  fix: brew install yazi"
-  return 2
+  return 1
 fi
 
 ome_info "yazi: $(command yazi --version 2>&1 | head -1)"
