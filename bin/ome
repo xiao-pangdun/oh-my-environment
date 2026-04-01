@@ -35,7 +35,7 @@ ome_cmd_update() {
   ome_info "Updating oh-my-environment..."
 
   # Update ome itself
-  if git -C "$OME_HOME" pull --rebase; then
+  if git -C "$OME_HOME" pull --rebase &>/dev/null; then
     ome_info "Repository updated."
   else
     ome_error "Failed to update repository."
@@ -57,7 +57,7 @@ ome_cmd_update() {
       ome_info "Updating plain plugins..."
       local plugin_dir
       for plugin_dir in "$OME_HOME"/.plugins/*(N/); do
-        git -C "$plugin_dir" pull --rebase 2>/dev/null || true
+        git -C "$plugin_dir" pull --rebase &>/dev/null || true
       done
       ;;
     oh-my-zsh)
