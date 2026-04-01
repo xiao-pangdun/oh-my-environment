@@ -80,10 +80,10 @@ ome_cmd_doctor() {
   # Check OME_HOME
   if [[ ! -d "$OME_HOME" ]]; then
     ome_error "[✗] OME_HOME not found: $OME_HOME"
-    (( errors++ ))
+    (( ++errors ))
   else
     ome_info "[✓] OME_HOME: $OME_HOME"
-    (( passed++ ))
+    (( ++passed ))
   fi
 
   # Check .zshrc symlink
@@ -91,24 +91,24 @@ ome_cmd_doctor() {
     local target="$(readlink "$HOME/.zshrc")"
     if [[ "$target" == *oh-my-environment* ]]; then
       ome_info "[✓] .zshrc → $target"
-      (( passed++ ))
+      (( ++passed ))
     else
       ome_warn "[!] .zshrc points to: $target (not managed by ome)"
-      (( warnings++ ))
+      (( ++warnings ))
     fi
   else
     ome_warn "[!] .zshrc is not a symlink"
-    (( warnings++ ))
+    (( ++warnings ))
   fi
 
   # Check loader
   local loader="${OME_LOADER:-zinit}"
   if [[ ! -f "$OME_HOME/loaders/$loader/loader.zsh" ]]; then
     ome_error "[✗] Loader not found: $loader"
-    (( errors++ ))
+    (( ++errors ))
   else
     ome_info "[✓] Loader: $loader"
-    (( passed++ ))
+    (( ++passed ))
   fi
 
   # Check required tools
@@ -116,10 +116,10 @@ ome_cmd_doctor() {
   for tool in git zsh; do
     if (( $+commands[$tool] )); then
       ome_info "[✓] $tool: $(command $tool --version 2>&1 | head -1)"
-      (( passed++ ))
+      (( ++passed ))
     else
       ome_error "[✗] $tool: not found"
-      (( errors++ ))
+      (( ++errors ))
     fi
   done
 
@@ -127,28 +127,24 @@ ome_cmd_doctor() {
   local doctor_file result
   for doctor_file in "$OME_HOME"/core/modules/*/doctor.zsh(N); do
     local mod_name="${doctor_file:h:t}"
-    if (( ${OME_DISABLED_MODULES[(Ie)$mod_name]} )); then
-      ome_info "[—] $mod_name: disabled"
-      continue
-    fi
-    source "$doctor_file"
-    result=$?
+    result=0
+    ( source "$doctor_file" ) || result=$?
     if (( result == 0 )); then
-      (( passed++ ))
+      (( ++passed ))
     elif (( result == 1 )); then
-      (( warnings++ ))
+      (( ++warnings ))
     else
-      (( errors++ ))
+      (( ++errors ))
     fi
   done
 
   # Summary
   echo ""
   ome_info "Doctor summary:"
-  (( passed > 0 ))   && ome_info "  [✓] $passed passed"
-  (( warnings > 0 )) && ome_warn "  [!] $warnings warning(s)"
-  (( errors > 0 ))   && ome_error "  [✗] $errors error(s)"
-  (( warnings == 0 && errors == 0 )) && ome_info "  No issues found."
+  if (( passed > 0 )); then ome_info "  [✓] $passed passed"; fi
+  if (( warnings > 0 )); then ome_warn "  [!] $warnings warning(s)"; fi
+  if (( errors > 0 )); then ome_error "  [✗] $errors error(s)"; fi
+  if (( warnings == 0 && errors == 0 )); then ome_info "  No issues found."; fi
 }
 
 # --- Dispatch ---

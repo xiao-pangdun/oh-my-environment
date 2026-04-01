@@ -55,4 +55,3 @@ Set these in your shell environment before sourcing ome:
 | `OME_LOADER` | auto-detected | Loader to use (`zinit`, `oh-my-zsh`, `plain`) |
 | `OME_AUTO_UPDATE` | `false` | `true` to update silently in the background |
 | `OME_UPDATE_FREQUENCY` | `13` | Days between update checks |
-| `OME_DISABLED_MODULES` | `()` | Array of module names to skip |
