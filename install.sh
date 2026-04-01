@@ -1,6 +1,6 @@
 #!/bin/sh
 # install.sh — One-line installer for oh-my-environment
-# Usage: sh -c "$(curl -fsSL https://raw.githubusercontent.com/xiao-pangdun/oh-my-environment/main/install.sh)"
+# Usage: bash -c "$(curl -fsSL https://raw.githubusercontent.com/xiao-pangdun/oh-my-environment/main/install.sh)"
 
 set -e
 
@@ -8,15 +8,12 @@ set -e
 OME_HOME="${OME_HOME:-$HOME/.oh-my-environment}"
 OME_REPO="https://github.com/xiao-pangdun/oh-my-environment.git"
 OME_LOADER="${OME_LOADER:-zinit}"
-UNATTENDED=false
-
 # Parse arguments
 for arg in "$@"; do
   case "$arg" in
     --loader=*) OME_LOADER="${arg#--loader=}" ;;
-    --unattended) UNATTENDED=true ;;
     --help)
-      echo "Usage: install.sh [--loader=zinit|oh-my-zsh|plain] [--unattended]"
+      echo "Usage: install.sh [--loader=zinit|oh-my-zsh|plain]"
       exit 0
       ;;
   esac
