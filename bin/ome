@@ -158,11 +158,22 @@ case "${1:-}" in
   update)  ome_cmd_update ;;
   doctor)  ome_cmd_doctor ;;
   *)
-    echo "Usage: ome <command>"
-    echo ""
-    echo "Commands:"
-    echo "  install           Install configs (.zshrc, module symlinks)"
-    echo "  update            Update ome + plugins + re-install configs"
-    echo "  doctor            Diagnose issues"
+    local mod_cmd="$OME_HOME/core/modules/${1:-}/command.zsh"
+    if [[ -n "${1:-}" && -f "$mod_cmd" ]]; then
+      local mod="$1"; shift
+      source "$mod_cmd" "$@"
+    else
+      echo "Usage: ome <command>"
+      echo ""
+      echo "Commands:"
+      echo "  install           Install configs (.zshrc, module symlinks)"
+      echo "  update            Update ome + plugins + re-install configs"
+      echo "  doctor            Diagnose issues"
+      echo ""
+      echo "Module commands:"
+      for f in "$OME_HOME"/core/modules/*/command.zsh(N); do
+        echo "  ${f:h:t}"
+      done
+    fi
     ;;
 esac
