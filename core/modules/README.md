@@ -8,8 +8,8 @@ Each module is a directory under `modules/` representing a tool or SDK.
 modules/
 └── your-tool/
     ├── init.zsh       # Required — sourced at shell startup
-    ├── link.zsh       # Optional — run by `ome link` to create symlinks
-    └── config.toml    # Optional — config file managed by link.zsh
+    ├── install.zsh       # Optional — run by `ome install` to create symlinks
+    └── config.toml    # Optional — config file managed by install.zsh
 ```
 
 ## Conventions
@@ -20,7 +20,7 @@ modules/
     eval "$(your-tool init zsh)"
   fi
   ```
-- **`link.zsh`** (optional): Only executed by `ome link`, never at startup. Use `ome_symlink` helper:
+- **`install.zsh`** (optional): Only executed by `ome install`, never at startup. Use `ome_symlink` helper:
   ```zsh
   ome_symlink "${0:h}/config.toml" "$HOME/.config/your-tool/config.toml"
   ```

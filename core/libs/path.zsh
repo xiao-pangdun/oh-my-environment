@@ -20,7 +20,7 @@ ome_path_append() {
   esac
 }
 
-# Create a symlink with backup. Used by `ome link` via module link.zsh files.
+# Create a symlink with backup. Used by `ome install` via module install.zsh files.
 # Usage: ome_symlink <source> <target>
 ome_symlink() {
   local src="$1" target="$2"

@@ -7,16 +7,16 @@ set -e
 # Defaults
 OME_HOME="${OME_HOME:-$HOME/.oh-my-environment}"
 OME_REPO="https://github.com/xiao-pangdun/oh-my-environment.git"
-OME_ADAPTOR="${OME_ADAPTOR:-zinit}"
+OME_LOADER="${OME_LOADER:-zinit}"
 UNATTENDED=false
 
 # Parse arguments
 for arg in "$@"; do
   case "$arg" in
-    --adaptor=*) OME_ADAPTOR="${arg#--adaptor=}" ;;
+    --loader=*) OME_LOADER="${arg#--loader=}" ;;
     --unattended) UNATTENDED=true ;;
     --help)
-      echo "Usage: install.sh [--adaptor=zinit|oh-my-zsh|plain] [--unattended]"
+      echo "Usage: install.sh [--loader=zinit|oh-my-zsh|plain] [--unattended]"
       exit 0
       ;;
   esac
@@ -39,7 +39,7 @@ else
 fi
 
 # Bootstrap zinit if selected and not found
-if [ "$OME_ADAPTOR" = "zinit" ]; then
+if [ "$OME_LOADER" = "zinit" ]; then
   if [ ! -d "$HOME/.zinit" ]; then
     info "Installing zinit..."
     mkdir -p "$HOME/.zinit"
@@ -73,19 +73,19 @@ elif [ -L "$HOME/.zshrc" ]; then
   info "Existing .zshrc is a symlink, will be replaced."
 fi
 
-# Export for ome link
-export OME_HOME OME_ADAPTOR
+# Export for ome install
+export OME_HOME OME_LOADER
 
 # Make ome executable
 chmod +x "$OME_HOME/bin/ome"
 
-# Run ome link for initial setup
-info "Running ome link..."
-zsh "$OME_HOME/bin/ome" link
+# Run ome install for initial setup
+info "Running ome install..."
+zsh "$OME_HOME/bin/ome" install
 
 info ""
 info "oh-my-environment installed successfully!"
-info "  Adaptor: $OME_ADAPTOR"
+info "  Loader: $OME_LOADER"
 info "  Location: $OME_HOME"
 info ""
 info "Restart your shell or run: source ~/.zshrc"

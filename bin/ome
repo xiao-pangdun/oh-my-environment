@@ -7,26 +7,28 @@ OME_HOME="${OME_HOME:-$HOME/.oh-my-environment}"
 source "$OME_HOME/core/libs/log.zsh"
 source "$OME_HOME/core/libs/path.zsh"
 
-ome_cmd_link() {
-  ome_info "Linking configs..."
+# --- Commands ---
 
-  local adaptor="${OME_ADAPTOR:-zinit}"
-  local adaptor_zshrc="$OME_HOME/adaptors/$adaptor/.zshrc"
+ome_cmd_install() {
+  ome_info "Installing configs..."
 
-  # Link adaptor .zshrc → ~/.zshrc
-  if [[ -f "$adaptor_zshrc" ]]; then
-    ome_symlink "$adaptor_zshrc" "$HOME/.zshrc"
+  local loader="${OME_LOADER:-zinit}"
+  local loader_zshrc="$OME_HOME/loaders/$loader/.zshrc"
+
+  # Link loader .zshrc → ~/.zshrc
+  if [[ -f "$loader_zshrc" ]]; then
+    ome_symlink "$loader_zshrc" "$HOME/.zshrc"
   else
-    ome_warn "No .zshrc template for adaptor: $adaptor"
+    ome_warn "No .zshrc template for loader: $loader"
   fi
 
-  # Run module link.zsh files
-  local link_file
-  for link_file in "$OME_HOME"/core/modules/*/link.zsh(N); do
-    source "$link_file"
+  # Run module install.zsh files
+  local install_file
+  for install_file in "$OME_HOME"/core/modules/*/install.zsh(N); do
+    source "$install_file"
   done
 
-  ome_info "Link complete."
+  ome_info "Install complete."
 }
 
 ome_cmd_update() {
@@ -40,9 +42,9 @@ ome_cmd_update() {
     return 1
   fi
 
-  # Adaptor-specific plugin updates
-  local adaptor="${OME_ADAPTOR:-zinit}"
-  case "$adaptor" in
+  # Loader-specific plugin updates
+  local loader="${OME_LOADER:-zinit}"
+  case "$loader" in
     zinit)
       if (( ${+functions[zinit]} )); then
         ome_info "Updating zinit plugins..."
@@ -63,8 +65,8 @@ ome_cmd_update() {
       ;;
   esac
 
-  # Re-link configs
-  ome_cmd_link
+  # Re-install configs
+  ome_cmd_install
 
   ome_info "Update complete."
 }
@@ -94,13 +96,13 @@ ome_cmd_doctor() {
     (( issues++ ))
   fi
 
-  # Check adaptor
-  local adaptor="${OME_ADAPTOR:-zinit}"
-  if [[ ! -f "$OME_HOME/adaptors/$adaptor/adaptor.zsh" ]]; then
-    ome_error "Adaptor not found: $adaptor"
+  # Check loader
+  local loader="${OME_LOADER:-zinit}"
+  if [[ ! -f "$OME_HOME/loaders/$loader/loader.zsh" ]]; then
+    ome_error "Loader not found: $loader"
     (( issues++ ))
   else
-    ome_info "Adaptor: $adaptor"
+    ome_info "Loader: $loader"
   fi
 
   # Check required tools
@@ -123,11 +125,11 @@ ome_cmd_doctor() {
     fi
   done
 
-  # Check module link targets
-  local link_file
-  for link_file in "$OME_HOME"/core/modules/*/link.zsh(N); do
-    local mod_name="${link_file:h:t}"
-    ome_info "Module with links: $mod_name"
+  # Check module install targets
+  local install_file
+  for install_file in "$OME_HOME"/core/modules/*/install.zsh(N); do
+    local mod_name="${install_file:h:t}"
+    ome_info "Module with install: $mod_name"
   done
 
   if (( issues == 0 )); then
@@ -137,38 +139,18 @@ ome_cmd_doctor() {
   fi
 }
 
-ome_cmd_adaptor() {
-  if [[ -z "${1:-}" ]]; then
-    echo "${OME_ADAPTOR:-zinit}"
-    return
-  fi
+# --- Dispatch ---
 
-  local new_adaptor="$1"
-  if [[ ! -d "$OME_HOME/adaptors/$new_adaptor" ]]; then
-    ome_error "Unknown adaptor: $new_adaptor"
-    ome_error "Available: zinit, oh-my-zsh, plain"
-    return 1
-  fi
-
-  export OME_ADAPTOR="$new_adaptor"
-  ome_info "Switched to adaptor: $new_adaptor"
-  ome_cmd_link
-  ome_info "Restart your shell to apply changes."
-}
-
-# Main dispatch
 case "${1:-}" in
-  link)    ome_cmd_link ;;
+  install) ome_cmd_install ;;
   update)  ome_cmd_update ;;
   doctor)  ome_cmd_doctor ;;
-  adaptor) ome_cmd_adaptor "${2:-}" ;;
   *)
     echo "Usage: ome <command>"
     echo ""
     echo "Commands:"
-    echo "  link              Create/update symlinks (.zshrc, module configs)"
-    echo "  update            Update ome + plugins + re-link"
+    echo "  install           Install configs (.zshrc, module symlinks)"
+    echo "  update            Update ome + plugins + re-install configs"
     echo "  doctor            Diagnose issues"
-    echo "  adaptor [name]    Show or switch adaptor (zinit, oh-my-zsh, plain)"
     ;;
 esac
