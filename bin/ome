@@ -72,71 +72,83 @@ ome_cmd_update() {
 }
 
 ome_cmd_doctor() {
-  local issues=0
+  local errors=0 warnings=0 passed=0
 
   ome_info "Running diagnostics..."
+  echo ""
 
   # Check OME_HOME
   if [[ ! -d "$OME_HOME" ]]; then
-    ome_error "OME_HOME not found: $OME_HOME"
-    (( issues++ ))
+    ome_error "[✗] OME_HOME not found: $OME_HOME"
+    (( errors++ ))
+  else
+    ome_info "[✓] OME_HOME: $OME_HOME"
+    (( passed++ ))
   fi
 
   # Check .zshrc symlink
   if [[ -L "$HOME/.zshrc" ]]; then
     local target="$(readlink "$HOME/.zshrc")"
     if [[ "$target" == *oh-my-environment* ]]; then
-      ome_info ".zshrc → $target"
+      ome_info "[✓] .zshrc → $target"
+      (( passed++ ))
     else
-      ome_warn ".zshrc points to: $target (not managed by ome)"
-      (( issues++ ))
+      ome_warn "[!] .zshrc points to: $target (not managed by ome)"
+      (( warnings++ ))
     fi
   else
-    ome_warn ".zshrc is not a symlink"
-    (( issues++ ))
+    ome_warn "[!] .zshrc is not a symlink"
+    (( warnings++ ))
   fi
 
   # Check loader
   local loader="${OME_LOADER:-zinit}"
   if [[ ! -f "$OME_HOME/loaders/$loader/loader.zsh" ]]; then
-    ome_error "Loader not found: $loader"
-    (( issues++ ))
+    ome_error "[✗] Loader not found: $loader"
+    (( errors++ ))
   else
-    ome_info "Loader: $loader"
+    ome_info "[✓] Loader: $loader"
+    (( passed++ ))
   fi
 
   # Check required tools
   local tool
   for tool in git zsh; do
     if (( $+commands[$tool] )); then
-      ome_info "$tool: $(command $tool --version 2>&1 | head -1)"
+      ome_info "[✓] $tool: $(command $tool --version 2>&1 | head -1)"
+      (( passed++ ))
     else
-      ome_error "$tool: not found"
-      (( issues++ ))
+      ome_error "[✗] $tool: not found"
+      (( errors++ ))
     fi
   done
 
-  # Check optional tools used by modules
-  for tool in starship fnm uv sdk; do
-    if (( $+commands[$tool] )); then
-      ome_info "$tool: found"
+  # Run module doctors
+  local doctor_file result
+  for doctor_file in "$OME_HOME"/core/modules/*/doctor.zsh(N); do
+    local mod_name="${doctor_file:h:t}"
+    if (( ${OME_DISABLED_MODULES[(Ie)$mod_name]} )); then
+      ome_info "[—] $mod_name: disabled"
+      continue
+    fi
+    source "$doctor_file"
+    result=$?
+    if (( result == 0 )); then
+      (( passed++ ))
+    elif (( result == 1 )); then
+      (( warnings++ ))
     else
-      ome_warn "$tool: not found (optional)"
+      (( errors++ ))
     fi
   done
 
-  # Check module install targets
-  local install_file
-  for install_file in "$OME_HOME"/core/modules/*/install.zsh(N); do
-    local mod_name="${install_file:h:t}"
-    ome_info "Module with install: $mod_name"
-  done
-
-  if (( issues == 0 )); then
-    ome_info "No issues found."
-  else
-    ome_warn "$issues issue(s) found."
-  fi
+  # Summary
+  echo ""
+  ome_info "Doctor summary:"
+  (( passed > 0 ))   && ome_info "  [✓] $passed passed"
+  (( warnings > 0 )) && ome_warn "  [!] $warnings warning(s)"
+  (( errors > 0 ))   && ome_error "  [✗] $errors error(s)"
+  (( warnings == 0 && errors == 0 )) && ome_info "  No issues found."
 }
 
 # --- Dispatch ---
