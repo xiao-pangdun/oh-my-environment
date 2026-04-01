@@ -1,0 +1,174 @@
+#!/usr/bin/env zsh
+# ome — oh-my-environment CLI
+
+set -euo pipefail
+
+OME_HOME="${OME_HOME:-$HOME/.oh-my-environment}"
+source "$OME_HOME/core/libs/log.zsh"
+source "$OME_HOME/core/libs/path.zsh"
+
+ome_cmd_link() {
+  ome_info "Linking configs..."
+
+  local adaptor="${OME_ADAPTOR:-zinit}"
+  local adaptor_zshrc="$OME_HOME/adaptors/$adaptor/.zshrc"
+
+  # Link adaptor .zshrc → ~/.zshrc
+  if [[ -f "$adaptor_zshrc" ]]; then
+    ome_symlink "$adaptor_zshrc" "$HOME/.zshrc"
+  else
+    ome_warn "No .zshrc template for adaptor: $adaptor"
+  fi
+
+  # Run module link.zsh files
+  local link_file
+  for link_file in "$OME_HOME"/core/modules/*/link.zsh(N); do
+    source "$link_file"
+  done
+
+  ome_info "Link complete."
+}
+
+ome_cmd_update() {
+  ome_info "Updating oh-my-environment..."
+
+  # Update ome itself
+  if git -C "$OME_HOME" pull --rebase; then
+    ome_info "Repository updated."
+  else
+    ome_error "Failed to update repository."
+    return 1
+  fi
+
+  # Adaptor-specific plugin updates
+  local adaptor="${OME_ADAPTOR:-zinit}"
+  case "$adaptor" in
+    zinit)
+      if (( ${+functions[zinit]} )); then
+        ome_info "Updating zinit plugins..."
+        zinit update --all
+      else
+        ome_warn "zinit not loaded, skipping plugin update."
+      fi
+      ;;
+    plain)
+      ome_info "Updating plain plugins..."
+      local plugin_dir
+      for plugin_dir in "$OME_HOME"/.plugins/*(N/); do
+        git -C "$plugin_dir" pull --rebase 2>/dev/null || true
+      done
+      ;;
+    oh-my-zsh)
+      ome_info "oh-my-zsh manages its own plugin updates."
+      ;;
+  esac
+
+  # Re-link configs
+  ome_cmd_link
+
+  ome_info "Update complete."
+}
+
+ome_cmd_doctor() {
+  local issues=0
+
+  ome_info "Running diagnostics..."
+
+  # Check OME_HOME
+  if [[ ! -d "$OME_HOME" ]]; then
+    ome_error "OME_HOME not found: $OME_HOME"
+    (( issues++ ))
+  fi
+
+  # Check .zshrc symlink
+  if [[ -L "$HOME/.zshrc" ]]; then
+    local target="$(readlink "$HOME/.zshrc")"
+    if [[ "$target" == *oh-my-environment* ]]; then
+      ome_info ".zshrc → $target"
+    else
+      ome_warn ".zshrc points to: $target (not managed by ome)"
+      (( issues++ ))
+    fi
+  else
+    ome_warn ".zshrc is not a symlink"
+    (( issues++ ))
+  fi
+
+  # Check adaptor
+  local adaptor="${OME_ADAPTOR:-zinit}"
+  if [[ ! -f "$OME_HOME/adaptors/$adaptor/adaptor.zsh" ]]; then
+    ome_error "Adaptor not found: $adaptor"
+    (( issues++ ))
+  else
+    ome_info "Adaptor: $adaptor"
+  fi
+
+  # Check required tools
+  local tool
+  for tool in git zsh; do
+    if (( $+commands[$tool] )); then
+      ome_info "$tool: $(command $tool --version 2>&1 | head -1)"
+    else
+      ome_error "$tool: not found"
+      (( issues++ ))
+    fi
+  done
+
+  # Check optional tools used by modules
+  for tool in starship fnm uv sdk; do
+    if (( $+commands[$tool] )); then
+      ome_info "$tool: found"
+    else
+      ome_warn "$tool: not found (optional)"
+    fi
+  done
+
+  # Check module link targets
+  local link_file
+  for link_file in "$OME_HOME"/core/modules/*/link.zsh(N); do
+    local mod_name="${link_file:h:t}"
+    ome_info "Module with links: $mod_name"
+  done
+
+  if (( issues == 0 )); then
+    ome_info "No issues found."
+  else
+    ome_warn "$issues issue(s) found."
+  fi
+}
+
+ome_cmd_adaptor() {
+  if [[ -z "${1:-}" ]]; then
+    echo "${OME_ADAPTOR:-zinit}"
+    return
+  fi
+
+  local new_adaptor="$1"
+  if [[ ! -d "$OME_HOME/adaptors/$new_adaptor" ]]; then
+    ome_error "Unknown adaptor: $new_adaptor"
+    ome_error "Available: zinit, oh-my-zsh, plain"
+    return 1
+  fi
+
+  export OME_ADAPTOR="$new_adaptor"
+  ome_info "Switched to adaptor: $new_adaptor"
+  ome_cmd_link
+  ome_info "Restart your shell to apply changes."
+}
+
+# Main dispatch
+case "${1:-}" in
+  link)    ome_cmd_link ;;
+  update)  ome_cmd_update ;;
+  doctor)  ome_cmd_doctor ;;
+  adaptor) ome_cmd_adaptor "${2:-}" ;;
+  *)
+    echo "Usage: ome <command>"
+    echo ""
+    echo "Commands:"
+    echo "  link              Create/update symlinks (.zshrc, module configs)"
+    echo "  update            Update ome + plugins + re-link"
+    echo "  doctor            Diagnose issues"
+    echo "  adaptor [name]    Show or switch adaptor (zinit, oh-my-zsh, plain)"
+    ;;
+esac
