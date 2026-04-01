@@ -1,7 +1,11 @@
-# zinit adaptor — Loads core modules + uses zinit for 3rd-party plugins
+# zinit adaptor — Loads core libs + modules, then uses zinit for plugins
 
-# Load core modules (PATH setup, SDK init, etc.)
-source "$OME_HOME/core/init.zsh"
+source "$OME_HOME/core/libs/init.zsh"
+source "$OME_HOME/core/modules/init.zsh"
+
+# omz built-in plugins (deferred)
+zinit ice wait lucid
+zinit snippet OMZP::command-not-found
 
 # Parse .conf files and load plugins via zinit
 local conf_file repo load_mode

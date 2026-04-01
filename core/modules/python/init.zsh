@@ -1,4 +1,4 @@
 # uv shell completion
-if (( $+commands[uv] )); then
-  eval "$(uv generate-shell-completion zsh)"
-fi
+(( $+commands[uv] )) || return 0
+
+eval "$(uv generate-shell-completion zsh)"

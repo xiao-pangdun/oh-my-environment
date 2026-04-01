@@ -1,4 +1,4 @@
 # Starship prompt initialization
-if (( $+commands[starship] )); then
-  eval "$(starship init zsh)"
-fi
+(( $+commands[starship] )) || return 0
+
+eval "$(starship init zsh)"

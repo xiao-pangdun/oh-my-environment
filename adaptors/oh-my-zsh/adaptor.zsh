@@ -1,7 +1,10 @@
-# oh-my-zsh adaptor — Loads core modules + declares plugins for oh-my-zsh
+# oh-my-zsh adaptor — Loads core libs + modules, then declares plugins for oh-my-zsh
 
-# Load core modules (PATH setup, SDK init, etc.)
-source "$OME_HOME/core/init.zsh"
+source "$OME_HOME/core/libs/init.zsh"
+source "$OME_HOME/core/modules/init.zsh"
+
+# omz built-in plugins
+plugins+=(command-not-found)
 
 # Parse .conf files and collect plugin repo names for oh-my-zsh
 # oh-my-zsh expects plugins to be cloned into $ZSH_CUSTOM/plugins/
