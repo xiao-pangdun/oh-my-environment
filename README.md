@@ -45,6 +45,7 @@ ome update     # Pull latest changes, update plugins, re-install configs
 ome doctor     # Run diagnostics across all modules
 ```
 
+
 ## Configuration
 
 Set these in your shell environment before sourcing ome:

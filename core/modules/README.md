@@ -7,8 +7,9 @@ Each module is a directory under `modules/` representing a tool or SDK.
 ```
 modules/
 └── your-tool/
-    ├── init.zsh       # Required — sourced at shell startup
-    ├── install.zsh       # Optional — run by `ome install` to create symlinks
+    ├── init.zsh       # Sourced at shell startup (define functions, set PATH, etc.)
+    ├── doctor.zsh     # Optional — run by `ome doctor` for diagnostics
+    ├── install.zsh    # Optional — run by `ome install` to create symlinks
     └── config.toml    # Optional — config file managed by install.zsh
 ```
 
@@ -27,11 +28,3 @@ modules/
 - Modules are loaded alphabetically by directory name
 - Modules must be self-contained — no cross-module dependencies
 - Use `ome_path_prepend` / `ome_path_append` from `core/libs/path.zsh` for PATH setup
-
-## Disabling modules
-
-Set `OME_DISABLED_MODULES` in your `.zshrc` before sourcing ome:
-
-```zsh
-OME_DISABLED_MODULES=(java maestro)
-```
