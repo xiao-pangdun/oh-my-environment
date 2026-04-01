@@ -5,7 +5,7 @@ local ome_plugins="${0:h}"
 local plugin_dir="$OME_HOME/.plugins"
 mkdir -p "$plugin_dir"
 
-local conf_file repo
+local conf_file repo entry plugin_name plugin_path
 for conf_file in "$ome_plugins"/*.conf(N); do
   repo=""
 
@@ -19,8 +19,8 @@ for conf_file in "$ome_plugins"/*.conf(N); do
 
   [[ -z "$repo" ]] && continue
 
-  local plugin_name="${repo##*/}"
-  local plugin_path="$plugin_dir/$plugin_name"
+  plugin_name="${repo##*/}"
+  plugin_path="$plugin_dir/$plugin_name"
 
   # Clone if not present
   if [[ ! -d "$plugin_path" ]]; then
@@ -28,7 +28,6 @@ for conf_file in "$ome_plugins"/*.conf(N); do
   fi
 
   # Source the plugin (try common entry point patterns)
-  local entry
   for entry in "$plugin_path/$plugin_name.plugin.zsh" \
                "$plugin_path/$plugin_name.zsh" \
                "$plugin_path/${plugin_name}.zsh-theme"; do

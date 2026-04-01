@@ -9,7 +9,7 @@ plugins+=(command-not-found)
 # Parse .conf files and collect plugin repo names for oh-my-zsh
 # oh-my-zsh expects plugins to be cloned into $ZSH_CUSTOM/plugins/
 # All plugins are loaded immediately (oh-my-zsh has no deferred loading)
-local conf_file repo
+local conf_file repo plugin_name
 for conf_file in "$OME_HOME"/core/plugins/*.conf(N); do
   repo=""
 
@@ -23,7 +23,7 @@ for conf_file in "$OME_HOME"/core/plugins/*.conf(N); do
 
   [[ -z "$repo" ]] && continue
 
-  local plugin_name="${repo##*/}"
+  plugin_name="${repo##*/}"
 
   # Clone plugin if not present
   if [[ ! -d "${ZSH_CUSTOM:-$ZSH/custom}/plugins/$plugin_name" ]]; then
