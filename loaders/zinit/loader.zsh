@@ -1,4 +1,4 @@
-# zinit adaptor — Loads core libs + modules, then uses zinit for plugins
+# zinit loader — Loads core libs + modules, then uses zinit for plugins
 
 source "$OME_HOME/core/libs/init.zsh"
 source "$OME_HOME/core/modules/init.zsh"

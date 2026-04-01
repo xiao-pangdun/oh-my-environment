@@ -3,24 +3,24 @@
 
 export OME_HOME="${OME_HOME:-${0:h}}"
 
-# Detect or use configured adaptor
-if [[ "$OME_ADAPTOR" == "auto" || -z "$OME_ADAPTOR" ]]; then
+# Detect or use configured loader
+if [[ "$OME_LOADER" == "auto" || -z "$OME_LOADER" ]]; then
   if (( ${+functions[zinit]} )) || [[ -f "${HOME}/.zinit/zinit.zsh" ]] || [[ -f "${ZINIT[BIN_DIR]}/zinit.zsh" ]]; then
-    OME_ADAPTOR="zinit"
+    OME_LOADER="zinit"
   elif [[ -n "$ZSH" && -d "$ZSH" ]]; then
-    OME_ADAPTOR="oh-my-zsh"
+    OME_LOADER="oh-my-zsh"
   else
-    OME_ADAPTOR="plain"
+    OME_LOADER="plain"
   fi
 fi
-export OME_ADAPTOR
+export OME_LOADER
 
-# Source adaptor
-local adaptor_file="$OME_HOME/adaptors/$OME_ADAPTOR/adaptor.zsh"
-if [[ -f "$adaptor_file" ]]; then
-  source "$adaptor_file"
+# Source loader
+local loader_file="$OME_HOME/loaders/$OME_LOADER/loader.zsh"
+if [[ -f "$loader_file" ]]; then
+  source "$loader_file"
 else
-  echo "[ome] unknown adaptor: $OME_ADAPTOR" >&2
+  echo "[ome] unknown loader: $OME_LOADER" >&2
 fi
 
 # Auto-update check

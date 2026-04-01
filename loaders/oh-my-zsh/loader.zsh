@@ -1,4 +1,4 @@
-# oh-my-zsh adaptor — Loads core libs + modules, then declares plugins for oh-my-zsh
+# oh-my-zsh loader — Loads core libs + modules, then declares plugins for oh-my-zsh
 
 source "$OME_HOME/core/libs/init.zsh"
 source "$OME_HOME/core/modules/init.zsh"

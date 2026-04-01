@@ -1,6 +1,6 @@
 # Plugins
 
-Each `.conf` file declares a third-party zsh plugin for adaptors to load.
+Each `.conf` file declares a third-party zsh plugin for loaders to load.
 
 ## Format
 
@@ -19,7 +19,7 @@ load = deferred
 | `description` | no       | free text                 | Human-readable description           |
 | `load`        | no       | `immediate` or `deferred` | Loading strategy (default: immediate)|
 
-### How adaptors interpret `load`
+### How loaders interpret `load`
 
 - **zinit**: `deferred` → turbo mode (`wait lucid`), `immediate` → direct load
 - **oh-my-zsh**: all plugins loaded immediately (oh-my-zsh has no deferred loading)
