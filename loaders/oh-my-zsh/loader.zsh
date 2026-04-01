@@ -36,3 +36,8 @@ for conf_file in "$OME_HOME"/core/plugins/*.conf(N); do
     plugins+=("$plugin_name")
   fi
 done
+
+# Deferred module loading (runs after plugins/compinit)
+for mod_defer in "$OME_HOME"/core/modules/*/defer.zsh(N); do
+  source "$mod_defer"
+done
