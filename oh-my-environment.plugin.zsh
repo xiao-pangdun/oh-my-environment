@@ -23,11 +23,11 @@ else
   echo "[ome] unknown loader: $OME_LOADER" >&2
 fi
 
-# Auto-update check
-source "$OME_HOME/scripts/update-check.zsh"
-
 # Add bin/ to PATH for `ome` command
 case ":$PATH:" in
   *:"$OME_HOME/bin":*) ;;
   *) export PATH="$OME_HOME/bin:$PATH" ;;
 esac
+
+# Auto-update check
+source "$OME_HOME/scripts/update-check.zsh"
