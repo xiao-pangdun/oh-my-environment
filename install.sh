@@ -36,7 +36,7 @@ if [ ! -d "$ZSH" ]; then
   read -r answer
   if [ "$answer" = "y" ] || [ "$answer" = "Y" ]; then
     info "Installing oh-my-zsh..."
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended --keep-zshrc
   else
     error "oh-my-zsh is required. Install: https://ohmyz.sh"
   fi
