@@ -101,6 +101,43 @@ ome_cmd_update() {
   ome_info "Update complete."
 }
 
+ome_cmd_uninstall() {
+  ome_warn "This will remove oh-my-environment, oh-my-zsh, and all linked config files."
+  printf '\033[0;31m[ome]\033[0m Continue? [y/n] '
+  read -r answer
+  [[ "$answer" == [yY] ]] || { ome_info "Aborted."; return 0; }
+
+  # Remove all symlinks defined in links.conf files
+  local links_file target
+  for links_file in "$OME_HOME"/modules/*/links.conf(N); do
+    while IFS= read -r target; do
+      [[ "$target" =~ ^[[:space:]]*(#|$) ]] && continue
+      target="${target## }"; target="${target%% }"
+      target="${target/#\~/$HOME}"
+
+      if [[ -L "$target" ]]; then
+        rm -f "$target"
+        ome_info "Removed link: $target"
+      elif [[ -f "$target" ]]; then
+        rm -f "$target"
+        ome_info "Removed: $target"
+      fi
+    done < "$links_file"
+  done
+
+  if [[ -d "$HOME/.oh-my-zsh" ]]; then
+    rm -rf "$HOME/.oh-my-zsh"
+    ome_info "Removed ~/.oh-my-zsh"
+  fi
+
+  if [[ -d "$OME_HOME" ]]; then
+    rm -rf "$OME_HOME"
+    ome_info "Removed $OME_HOME"
+  fi
+
+  echo "\033[0;34m[ome]\033[0m Uninstall complete. Restart your shell."
+}
+
 # --- Dispatch ---
 
 ome_help() {
@@ -110,16 +147,18 @@ ome — oh-my-environment tool manager
 Usage: ome <command>
 
 Commands:
-  install   Symlink modules into $ZSH_CUSTOM and run module setup
-  update    Pull latest ome and update all installed plugins
+  install     Symlink modules into $ZSH_CUSTOM and run module setup
+  update      Pull latest ome and update all installed plugins
+  uninstall   Remove oh-my-environment, oh-my-zsh, and all linked configs
 
 Config repo and plugins are managed by 'omc'.
 EOF
 }
 
 case "${1:-}" in
-  install)  ome_cmd_install ;;
-  update)   ome_cmd_update ;;
+  install)    ome_cmd_install ;;
+  update)     ome_cmd_update ;;
+  uninstall)  ome_cmd_uninstall ;;
   --help|-h|help|"")  ome_help ;;
   *)
     ome_error "Unknown command: $1"
