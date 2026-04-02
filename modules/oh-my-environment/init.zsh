@@ -9,6 +9,9 @@ case ":$PATH:" in
   *) PATH="$OME_HOME/bin:$PATH" ;;
 esac
 
+# Add completions to fpath
+fpath=("$OME_HOME/completions" $fpath)
+
 # Source user's .omerc if it exists
 [[ -f "$HOME/.omerc" ]] && source "$HOME/.omerc"
 
@@ -40,7 +43,7 @@ esac
     printf '\033[0;34m[ome]\033[0m Checking for updates...\n'
     ome update
   else
-    printf '\033[0;34m[ome]\033[0m Updates may be available. Run \`ome update\` to update.\n'
+    printf '\033[0;34m[ome]\033[0m Updates may be available. Run `ome update` to update.\n'
   fi
 }
 
@@ -118,7 +121,7 @@ esac
 
       if (( should_prompt )); then
         echo "$now" > "$sync_file"
-        printf '\033[0;33m[ome]\033[0m Unsynced config changes. Run \`omc sync\` to commit and push.\n'
+        printf '\033[0;33m[ome]\033[0m Unsynced config changes. Run `omc sync` to commit and push.\n'
       fi
     fi
   fi

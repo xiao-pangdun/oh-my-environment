@@ -1,0 +1,13 @@
+#compdef ome
+
+_ome() {
+  local -a commands=(
+    'install:Symlink modules into $ZSH_CUSTOM and run module setup'
+    'update:Pull latest ome and update all installed plugins'
+    'uninstall:Remove oh-my-environment, oh-my-zsh, and all linked configs'
+    'help:Show help'
+  )
+  _describe -t commands 'ome command' commands
+}
+
+_ome "$@"

@@ -1,0 +1,39 @@
+#compdef omc
+
+_omc() {
+  local context state line ret=1
+
+  _arguments -C \
+    '1:command:->command' \
+    '*:: :->args' \
+    && ret=0
+
+  case $state in
+    (command)
+      local -a commands=(
+        'init:Clone config repo, link configs, install plugins'
+        'sync:Pull, reconcile, commit and push'
+        'plugin:Manage 3rd party plugins'
+        'help:Show help'
+      )
+      _describe -t commands 'omc command' commands && ret=0
+      ;;
+    (args)
+      case "$words[1]" in
+        (plugin)
+          local -a subcmds=(
+            'add:Clone from GitHub, add to plugins.list and .zshrc'
+            'remove:Remove from .zshrc, plugins.list, and disk'
+            'list:Show installed plugins'
+            'help:Show plugin help'
+          )
+          _describe -t commands 'plugin command' subcmds && ret=0
+          ;;
+      esac
+      ;;
+  esac
+
+  return ret
+}
+
+_omc "$@"
