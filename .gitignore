@@ -1,0 +1,7 @@
+# Managed directories (git-ignored)
+.custom/
+.config/
+
+# State files
+.last-update-check
+.last-sync-prompt

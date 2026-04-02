@@ -1,0 +1,465 @@
+#!/usr/bin/env zsh
+# omc — oh-my-environment config management CLI
+
+set -euo pipefail
+
+OME_HOME="${OME_HOME:-$HOME/.oh-my-environment}"
+source "$OME_HOME/lib/log.zsh"
+source "$OME_HOME/lib/path.zsh"
+
+# --- Helpers ---
+
+# Process links.conf files: symlink config repo files to system paths
+_omc_link_configs() {
+  local config_repo="$OME_HOME/.config"
+  [[ -d "$config_repo" ]] || return 0
+
+  local links_file mod_name target source basename
+  for links_file in "$OME_HOME"/modules/*/links.conf(N); do
+    mod_name="${links_file:h:t}"
+
+    while IFS= read -r target; do
+      [[ "$target" =~ ^[[:space:]]*(#|$) ]] && continue
+      target="${target## }"; target="${target%% }"
+      target="${target/#\~/$HOME}"
+
+      basename="${target:t}"
+      source="$config_repo/$mod_name/$basename"
+
+      # Only link if the file exists in config repo
+      if [[ -f "$source" ]]; then
+        ome_symlink "$source" "$target"
+        ome_info "linked: $target → $source"
+      fi
+    done < "$links_file"
+  done
+}
+
+# Clean up symlinks that point into .config/
+_omc_clean_config_links() {
+  local links_file target
+  for links_file in "$OME_HOME"/modules/*/links.conf(N); do
+    while IFS= read -r target; do
+      [[ "$target" =~ ^[[:space:]]*(#|$) ]] && continue
+      target="${target## }"; target="${target%% }"
+      target="${target/#\~/$HOME}"
+
+      # Remove symlinks pointing to our .config/ directory
+      if [[ -L "$target" ]]; then
+        local link_target="$(readlink "$target")"
+        if [[ "$link_target" == *"$OME_HOME/.config"* ]]; then
+          rm -f "$target"
+          ome_info "removed old link: $target"
+        fi
+      fi
+    done < "$links_file"
+  done
+}
+
+# Reconcile plugins: clone missing, delete orphaned
+_omc_reconcile_plugins() {
+  local plugins_list="$OME_HOME/.config/oh-my-zsh/plugins.list"
+  [[ -f "$plugins_list" ]] || return 0
+
+  local plugins_dir="$OME_HOME/.custom/plugins"
+  mkdir -p "$plugins_dir"
+
+  # Collect expected plugin names from plugins.list
+  local -a expected_plugins=()
+  local repo plugin_name
+  while IFS= read -r repo; do
+    [[ "$repo" =~ ^[[:space:]]*(#|$) ]] && continue
+    repo="${repo## }"; repo="${repo%% }"
+    plugin_name="${repo##*/}"
+    expected_plugins+=("$plugin_name")
+
+    # Clone if missing
+    if [[ ! -d "$plugins_dir/$plugin_name" ]]; then
+      ome_info "Cloning plugin: $plugin_name"
+      git clone --depth 1 "https://github.com/$repo.git" "$plugins_dir/$plugin_name" 2>/dev/null || \
+        ome_warn "Failed to clone: $repo"
+    fi
+  done < "$plugins_list"
+
+  # Delete orphaned plugins (on disk but not in plugins.list)
+  local plugin_dir
+  for plugin_dir in "$plugins_dir"/*(N/); do
+    plugin_name="${plugin_dir:t}"
+    if (( ! ${expected_plugins[(Ie)$plugin_name]} )); then
+      ome_info "Removing orphaned plugin: $plugin_name"
+      rm -rf "$plugin_dir"
+    fi
+  done
+}
+
+# Add a plugin name to .zshrc plugins=() in the 3rd party section, alphabetically
+_omc_zshrc_plugin_add() {
+  local plugin_name="$1"
+  local zshrc="$HOME/.zshrc"
+  [[ -f "$zshrc" ]] || return 1
+
+  # Check if already present (fixed string match, no regex injection)
+  if grep -qF "$plugin_name" "$zshrc" 2>/dev/null; then
+    # Verify it's actually in plugins=() and not just mentioned elsewhere
+    local in_plugins=0 found=0
+    while IFS= read -r line; do
+      if [[ "$line" =~ ^[[:space:]]*plugins=\( ]]; then in_plugins=1; continue; fi
+      if (( in_plugins )); then
+        [[ "$line" =~ \) ]] && break
+        local name="${line## }"; name="${name%% }"
+        [[ "$name" == "$plugin_name" ]] && found=1 && break
+      fi
+    done < "$zshrc"
+    (( found )) && return 0
+  fi
+
+  # Read current 3rd party plugins from plugins=() to build sorted list
+  local -a third_party=()
+  local in_plugins=0
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^[[:space:]]*plugins=\( ]]; then
+      in_plugins=1; continue
+    fi
+    if (( in_plugins )); then
+      [[ "$line" =~ \) ]] && break
+      [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
+      local name="${line## }"; name="${name%% }"
+      # 3rd party = has a dir in .custom/plugins/ or is the one we're adding
+      if [[ -d "$OME_HOME/.custom/plugins/$name" || "$name" == "$plugin_name" ]]; then
+        third_party+=("$name")
+      fi
+    fi
+  done < "$zshrc"
+
+  # Add new plugin and sort
+  third_party+=("$plugin_name")
+  third_party=(${(uo)third_party})
+
+  # Backup .zshrc before modification
+  cp "$zshrc" "${zshrc}.omc-backup"
+
+  # Rebuild: keep built-in lines, replace 3rd party section
+  local tmpfile="$(mktemp)"
+  local state="before"
+  local wrote_tp=0
+
+  while IFS= read -r line; do
+    case "$state" in
+      before)
+        echo "$line" >> "$tmpfile"
+        if [[ "$line" =~ ^[[:space:]]*plugins=\( ]]; then
+          state="in_plugins"
+        fi
+        ;;
+      in_plugins)
+        if [[ "$line" =~ \) ]]; then
+          # Write 3rd party section before closing
+          if (( ! wrote_tp )); then
+            echo "    # 3rd party" >> "$tmpfile"
+            for p in "${third_party[@]}"; do
+              echo "    $p" >> "$tmpfile"
+            done
+            wrote_tp=1
+          fi
+          echo "$line" >> "$tmpfile"
+          state="after"
+        elif [[ "$line" =~ ^[[:space:]]*#.*3rd ]]; then
+          # Skip old 3rd party comment (will be rewritten)
+          continue
+        else
+          local name="${line## }"; name="${name%% }"
+          [[ -z "$name" || "$name" == \#* ]] && { echo "$line" >> "$tmpfile"; continue; }
+          # Keep non-3rd-party lines (built-in plugins)
+          if [[ ! -d "$OME_HOME/.custom/plugins/$name" && "$name" != "$plugin_name" ]]; then
+            echo "$line" >> "$tmpfile"
+          fi
+        fi
+        ;;
+      after)
+        echo "$line" >> "$tmpfile"
+        ;;
+    esac
+  done < "$zshrc"
+
+  mv "$tmpfile" "$zshrc"
+}
+
+# Remove a plugin name from .zshrc plugins=()
+_omc_zshrc_plugin_remove() {
+  local plugin_name="$1"
+  local zshrc="$HOME/.zshrc"
+  [[ -f "$zshrc" ]] || return 1
+
+  # Backup .zshrc before modification
+  cp "$zshrc" "${zshrc}.omc-backup"
+
+  local tmpfile="$(mktemp)"
+  local in_plugins=0
+
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^[[:space:]]*plugins=\( ]]; then
+      in_plugins=1
+      echo "$line" >> "$tmpfile"
+      continue
+    fi
+    if (( in_plugins )); then
+      if [[ "$line" =~ \) ]]; then
+        in_plugins=0
+        echo "$line" >> "$tmpfile"
+        continue
+      fi
+      local name="${line## }"; name="${name%% }"
+      # Skip the plugin we're removing
+      if [[ "$name" == "$plugin_name" ]]; then
+        continue
+      fi
+    fi
+    echo "$line" >> "$tmpfile"
+  done < "$zshrc"
+
+  mv "$tmpfile" "$zshrc"
+}
+
+# --- Commands ---
+
+omc_cmd_init() {
+  local url="${1:-}"
+  if [[ -z "$url" ]]; then
+    ome_error "Usage: omc init <git-url>"
+    return 1
+  fi
+
+  local config_dir="$OME_HOME/.config"
+
+  # Clean up existing config links before re-init
+  _omc_clean_config_links
+
+  if [[ -d "$config_dir" ]]; then
+    ome_warn "Config repo already exists at $config_dir"
+    ome_warn "Pulling latest changes..."
+    git -C "$config_dir" pull --ff-only || true
+  else
+    ome_info "Cloning config repo..."
+    git clone "$url" "$config_dir"
+  fi
+
+  # Link config files
+  _omc_link_configs
+
+  # Reconcile plugins from plugins.list
+  _omc_reconcile_plugins
+
+  # Run module install.zsh files (copies .example files if targets don't exist)
+  local install_file
+  for install_file in "$OME_HOME"/modules/*/install.zsh(N); do
+    source "$install_file"
+  done
+
+  ome_info "Config init complete."
+}
+
+omc_cmd_sync() {
+  local config_dir="$OME_HOME/.config"
+  if [[ ! -d "$config_dir/.git" ]]; then
+    ome_error "No config repo found. Run 'omc init <url>' first."
+    return 1
+  fi
+
+  # Pull remote changes first
+  ome_info "Pulling remote changes..."
+  local pull_output
+  if ! pull_output=$(git -C "$config_dir" pull --ff-only 2>&1); then
+    ome_error "Pull failed: $pull_output"
+    ome_error "Resolve manually in $config_dir, then re-run 'omc sync'."
+    return 1
+  fi
+
+  # Reconcile plugins (clone missing, delete orphaned)
+  _omc_reconcile_plugins
+
+  # Re-link config files
+  _omc_link_configs
+
+  # Check for local changes
+  local changes
+  changes=$(git -C "$config_dir" status --porcelain 2>/dev/null)
+  if [[ -z "$changes" ]]; then
+    ome_info "Config repo is clean. Nothing to sync."
+    return 0
+  fi
+
+  # Stage, commit, and push
+  git -C "$config_dir" add -A
+  git -C "$config_dir" commit -m "omc sync: $(date +%Y-%m-%d)"
+  ome_info "Changes committed."
+
+  printf '\033[0;34m[ome]\033[0m Push to remote? [y/n] '
+  read -r answer
+  if [[ "$answer" == [yY] ]]; then
+    git -C "$config_dir" push
+    ome_info "Pushed to remote."
+  fi
+}
+
+omc_cmd_plugin_add() {
+  local repo="${1:-}"
+  if [[ -z "$repo" ]]; then
+    ome_error "Usage: omc plugin add <github-org/repo>"
+    return 1
+  fi
+
+  # Must be org/name format
+  if [[ "$repo" != */* ]]; then
+    ome_error "Use full GitHub repo: <org>/<name> (e.g., zsh-users/zsh-autosuggestions)"
+    return 1
+  fi
+
+  local plugin_name="${repo##*/}"
+  local plugin_dir="$OME_HOME/.custom/plugins/$plugin_name"
+
+  # Clone if not already present
+  if [[ -d "$plugin_dir" ]]; then
+    ome_info "Plugin already on disk: $plugin_name"
+  else
+    ome_info "Cloning plugin: $plugin_name"
+    mkdir -p "$OME_HOME/.custom/plugins"
+    git clone --depth 1 "https://github.com/$repo.git" "$plugin_dir" || {
+      ome_error "Failed to clone: $repo"
+      return 1
+    }
+  fi
+
+  # Add to plugins.list in config repo
+  local config_dir="$OME_HOME/.config"
+  if [[ -d "$config_dir" ]]; then
+    mkdir -p "$config_dir/oh-my-zsh"
+    local plugins_list="$config_dir/oh-my-zsh/plugins.list"
+    if ! grep -qxF "$repo" "$plugins_list" 2>/dev/null; then
+      echo "$repo" >> "$plugins_list"
+      ome_info "Added to plugins.list: $repo"
+    fi
+  else
+    ome_warn "No config repo — plugin won't sync across devices. Run 'omc init' first."
+  fi
+
+  # Add to .zshrc plugins=()
+  _omc_zshrc_plugin_add "$plugin_name"
+  ome_info "Added to .zshrc plugins: $plugin_name"
+
+  ome_info "Plugin installed: $plugin_name"
+}
+
+omc_cmd_plugin_remove() {
+  local plugin_name="${1:-}"
+  if [[ -z "$plugin_name" ]]; then
+    ome_error "Usage: omc plugin remove <plugin-name>"
+    return 1
+  fi
+
+  # Remove from .zshrc plugins=()
+  _omc_zshrc_plugin_remove "$plugin_name"
+  ome_info "Removed from .zshrc plugins: $plugin_name"
+
+  # Remove from plugins.list in config repo
+  local config_dir="$OME_HOME/.config"
+  if [[ -d "$config_dir" ]]; then
+    local plugins_list="$config_dir/oh-my-zsh/plugins.list"
+    if [[ -f "$plugins_list" ]]; then
+      local tmpfile="$(mktemp)"
+      grep -v "/$plugin_name\$" "$plugins_list" > "$tmpfile" || true
+      mv "$tmpfile" "$plugins_list"
+      ome_info "Removed from plugins.list: $plugin_name"
+    fi
+  fi
+
+  # Delete plugin directory
+  local plugin_dir="$OME_HOME/.custom/plugins/$plugin_name"
+  if [[ -d "$plugin_dir" ]]; then
+    rm -rf "$plugin_dir"
+    ome_info "Deleted: $plugin_dir"
+  fi
+
+  ome_info "Plugin removed: $plugin_name"
+}
+
+omc_cmd_plugin_list() {
+  local plugins_list="$OME_HOME/.config/oh-my-zsh/plugins.list"
+
+  if [[ ! -f "$plugins_list" ]]; then
+    ome_info "No plugins.list found."
+    return 0
+  fi
+
+  echo "3rd party plugins:"
+  echo ""
+  local repo plugin_name
+  while IFS= read -r repo; do
+    [[ "$repo" =~ ^[[:space:]]*(#|$) ]] && continue
+    repo="${repo## }"; repo="${repo%% }"
+    plugin_name="${repo##*/}"
+    if [[ -d "$OME_HOME/.custom/plugins/$plugin_name" ]]; then
+      printf "  %-30s %s\n" "$plugin_name" "$repo"
+    else
+      printf "  %-30s %s (missing)\n" "$plugin_name" "$repo"
+    fi
+  done < "$plugins_list"
+}
+
+# --- Dispatch ---
+
+omc_help() {
+  cat <<'EOF'
+omc — oh-my-environment config manager
+
+Usage: omc <command>
+
+Commands:
+  init <url>              Clone config repo, link configs, install plugins
+  sync                    Pull, reconcile, commit and push
+
+  plugin add <org/repo>   Add a GitHub plugin to .zshrc and plugins.list
+  plugin remove <name>    Remove a plugin entirely
+  plugin list             List 3rd party plugins
+
+Run 'omc sync' after changes to share across devices.
+EOF
+}
+
+omc_help_plugin() {
+  cat <<'EOF'
+Usage: omc plugin <command>
+
+Commands:
+  add <org/repo>   Clone from GitHub, add to plugins.list and .zshrc
+  remove <name>    Remove from .zshrc, plugins.list, and disk
+  list             Show installed plugins
+
+Examples:
+  omc plugin add zsh-users/zsh-autosuggestions
+  omc plugin remove zsh-autosuggestions
+EOF
+}
+
+case "${1:-}" in
+  init)   omc_cmd_init "${2:-}" ;;
+  sync)   omc_cmd_sync ;;
+  plugin)
+    case "${2:-}" in
+      add)    omc_cmd_plugin_add "${3:-}" ;;
+      remove) omc_cmd_plugin_remove "${3:-}" ;;
+      list)   omc_cmd_plugin_list ;;
+      --help|-h|help|"")  omc_help_plugin ;;
+      *)
+        ome_error "Unknown plugin command: $2"
+        omc_help_plugin
+        exit 1
+        ;;
+    esac
+    ;;
+  --help|-h|help|"")  omc_help ;;
+  *)
+    ome_error "Unknown command: $1"
+    omc_help
+    exit 1
+    ;;
+esac

@@ -7,13 +7,15 @@ set -e
 # Defaults
 OME_HOME="${OME_HOME:-$HOME/.oh-my-environment}"
 OME_REPO="https://github.com/xiao-pangdun/oh-my-environment.git"
-OME_LOADER="${OME_LOADER:-zinit}"
+CONFIG_REPO=""
+
 # Parse arguments
 for arg in "$@"; do
   case "$arg" in
-    --loader=*) OME_LOADER="${arg#--loader=}" ;;
+    --config=*) CONFIG_REPO="${arg#--config=}" ;;
+    --skip-config) CONFIG_REPO="__skip__" ;;
     --help)
-      echo "Usage: install.sh [--loader=zinit|oh-my-zsh|plain]"
+      echo "Usage: install.sh [--config=<git-url>] [--skip-config]"
       exit 0
       ;;
   esac
@@ -27,6 +29,12 @@ error() { printf '\033[0;31m[ome]\033[0m %s\n' "$1" >&2; exit 1; }
 command -v git >/dev/null 2>&1 || error "git is required but not found"
 command -v zsh >/dev/null 2>&1 || error "zsh is required but not found"
 
+# Check oh-my-zsh
+ZSH="${ZSH:-$HOME/.oh-my-zsh}"
+if [ ! -d "$ZSH" ]; then
+  error "oh-my-zsh is required but not found at $ZSH. Install: https://ohmyz.sh"
+fi
+
 # Clone ome
 if [ -d "$OME_HOME" ]; then
   info "oh-my-environment already installed at $OME_HOME"
@@ -35,54 +43,34 @@ else
   git clone "$OME_REPO" "$OME_HOME"
 fi
 
-# Bootstrap zinit if selected and not found
-if [ "$OME_LOADER" = "zinit" ]; then
-  if [ ! -d "$HOME/.zinit" ]; then
-    info "Installing zinit..."
-    mkdir -p "$HOME/.zinit"
-    git clone --depth 1 https://github.com/zdharma-continuum/zinit.git "$HOME/.zinit/zinit.zsh" 2>/dev/null || \
-      git clone --depth 1 https://github.com/zdharma-continuum/zinit.git "$HOME/.zinit"
-    info "zinit installed."
-  else
-    info "zinit already installed."
-  fi
-
-  # Bootstrap Starship if not found
-  if ! command -v starship >/dev/null 2>&1; then
-    if command -v brew >/dev/null 2>&1; then
-      info "Installing Starship via Homebrew..."
-      brew install starship
-    else
-      warn "Starship not found and Homebrew not available."
-      warn "Install Starship manually: https://starship.rs"
-    fi
-  else
-    info "Starship already installed."
-  fi
-fi
-
-# Backup existing .zshrc
-if [ -f "$HOME/.zshrc" ] && [ ! -L "$HOME/.zshrc" ]; then
-  backup="$HOME/.zshrc.ome-backup.$(date +%Y%m%d%H%M%S)"
-  cp "$HOME/.zshrc" "$backup"
-  info "Backed up existing .zshrc to $backup"
-elif [ -L "$HOME/.zshrc" ]; then
-  info "Existing .zshrc is a symlink, will be replaced."
-fi
-
-# Export for ome install
-export OME_HOME OME_LOADER
-
-# Make ome executable
+# Make CLIs executable
 chmod +x "$OME_HOME/bin/ome"
+chmod +x "$OME_HOME/bin/omc"
 
-# Run ome install for initial setup
+export OME_HOME
+
+# Config repo setup (before ome install, so config repo files take priority)
+if [ -z "$CONFIG_REPO" ]; then
+  # Interactive prompt
+  printf '\033[0;34m[ome]\033[0m Do you have a config repo? [y/n] '
+  read -r answer
+  if [ "$answer" = "y" ] || [ "$answer" = "Y" ]; then
+    printf '\033[0;34m[ome]\033[0m Config repo URL: '
+    read -r CONFIG_REPO
+  fi
+fi
+
+if [ -n "$CONFIG_REPO" ] && [ "$CONFIG_REPO" != "__skip__" ]; then
+  info "Setting up config repo..."
+  zsh "$OME_HOME/bin/omc" init "$CONFIG_REPO"
+fi
+
+# Run ome install (create .custom/, symlink modules, copy defaults if missing)
 info "Running ome install..."
 zsh "$OME_HOME/bin/ome" install
 
 info ""
 info "oh-my-environment installed successfully!"
-info "  Loader: $OME_LOADER"
 info "  Location: $OME_HOME"
 info ""
 info "Restart your shell or run: source ~/.zshrc"

@@ -1,58 +1,89 @@
 # oh-my-environment
 
-A modular zsh environment manager with pluggable loaders and per-module diagnostics.
+A modular zsh environment manager built on [oh-my-zsh](https://ohmyz.sh). Self-contained modules, personal config repo sync across devices, and plugin management.
+
+## Prerequisites
+
+- `git`
+- `zsh`
+- [oh-my-zsh](https://ohmyz.sh)
 
 ## Install
 
-Requires `git` and `zsh`.
+If you have a personal config repo (dotfiles), have the git URL ready — the installer will ask for it.
 
 ```sh
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/xiao-pangdun/oh-my-environment/main/install.sh)"
 ```
-| Argument | Default | Available values | Description |
-|----------|---------|------------------|-------------|
-| `--loader` | `zinit` | `zinit`, `oh-my-zsh`, `plain` | Plugin loading strategy |
-
-Example:
-
-```sh
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/xiao-pangdun/oh-my-environment/main/install.sh)" -- --loader=oh-my-zsh
-```
 
 The installer will:
-- Clone the repo to `~/.oh-my-environment`
-- Bootstrap zinit and Starship automatically when using the zinit loader
-- Backup your existing `~/.zshrc` (skipped if it's already a symlink)
-- Symlink the loader's `.zshrc` to `~/.zshrc`
+
+1. Clone ome to `~/.oh-my-environment`
+2. Ask if you have a config repo — if yes, clone and link configs + plugins
+3. Create `.custom/` as your `$ZSH_CUSTOM`, symlink modules, copy default `.zshrc` and `.omerc` if missing
 
 Restart your shell or run `source ~/.zshrc` to activate.
 
-## Loaders
+## CLI
 
-Loaders determine how plugins are sourced. The default is `zinit`.
+ome ships two commands:
 
-| Loader | Description |
-|--------|-------------|
-| `zinit` | Lazy-loading with [zinit](https://github.com/zdharma-continuum/zinit) and [Starship](https://starship.rs) prompt |
-| `oh-my-zsh` | Integrates with an existing [Oh My Zsh](https://ohmyz.sh) setup |
-| `plain` | Sources plugins directly, no framework |
+### `ome` — tool management
 
-## Usage
-
-```sh
-ome install    # Symlink configs and run module installers
-ome update     # Pull latest changes, update plugins, re-install configs
-ome doctor     # Run diagnostics across all modules
+```
+ome install    Symlink modules into $ZSH_CUSTOM and run module setup
+ome update     Pull latest ome and update all installed plugins
 ```
 
+### `omc` — config management
+
+```
+omc init <url>            Clone config repo, link configs, install plugins
+omc sync                  Pull, reconcile, commit and push
+omc plugin add <org/repo> Add a GitHub plugin to .zshrc and plugins.list
+omc plugin remove <name>  Remove a plugin entirely
+omc plugin list           List 3rd party plugins
+```
+
+## How it works
+
+ome manages `$ZSH_CUSTOM` via a `.custom/` directory. Each module's `init.zsh` is symlinked into `.custom/` so omz auto-sources it. Modules are self-contained — each has its own guard check and doesn't depend on ome at runtime.
+
+```
+~/.oh-my-environment/
+  bin/ome              # tool CLI
+  bin/omc              # config CLI
+  modules/             # self-contained modules (see modules/README.md)
+  .custom/             # $ZSH_CUSTOM (git-ignored, managed by ome)
+  .config/             # your config repo clone (git-ignored, managed by omc)
+```
+
+## Config repo
+
+Your personal config repo stores dotfiles organized by module name:
+
+```
+my-dotfiles/
+  oh-my-zsh/.zshrc
+  oh-my-zsh/plugins.list
+  starship/starship.toml
+  ghostty/config
+  yazi/yazi.toml
+```
+
+`omc sync` keeps it in sync across devices — pulls remote changes, reconciles plugins, links configs, commits and pushes local changes.
 
 ## Configuration
 
-Set these in your shell environment before sourcing ome:
+ome is configured via `~/.omerc` (copied on first install, not symlinked):
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `OME_HOME` | `~/.oh-my-environment` | Install location |
-| `OME_LOADER` | auto-detected | Loader to use (`zinit`, `oh-my-zsh`, `plain`) |
-| `OME_AUTO_UPDATE` | `false` | `true` to update silently in the background |
-| `OME_UPDATE_FREQUENCY` | `13` | Days between update checks |
+```zsh
+# Auto-update mode: auto | reminder | disabled
+zstyle ':ome:update' mode auto
+
+# Update frequency in days
+zstyle ':ome:update' frequency 13
+
+# Disabled modules (skip during ome install)
+# zstyle ':ome:modules' disabled python starship
+```

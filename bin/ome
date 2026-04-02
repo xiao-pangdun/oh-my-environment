@@ -1,30 +1,65 @@
 #!/usr/bin/env zsh
-# ome — oh-my-environment CLI
+# ome — oh-my-environment CLI (tool management)
 
 set -euo pipefail
 
 OME_HOME="${OME_HOME:-$HOME/.oh-my-environment}"
-source "$OME_HOME/core/libs/log.zsh"
-source "$OME_HOME/core/libs/path.zsh"
+source "$OME_HOME/lib/log.zsh"
+source "$OME_HOME/lib/path.zsh"
+
+# --- Helpers ---
+
+# Read disabled modules from .omerc
+_ome_disabled_modules() {
+  local disabled=()
+  if [[ -f "$HOME/.omerc" ]]; then
+    source "$HOME/.omerc"
+    zstyle -a ':ome:modules' disabled disabled 2>/dev/null
+  fi
+  echo "${disabled[@]}"
+}
 
 # --- Commands ---
 
 ome_cmd_install() {
-  ome_info "Installing configs..."
+  ome_info "Installing oh-my-environment..."
 
-  local loader="${OME_LOADER:-zinit}"
-  local loader_zshrc="$OME_HOME/loaders/$loader/.zshrc"
+  local disabled=($(_ome_disabled_modules))
+  local custom_dir="$OME_HOME/.custom"
+  mkdir -p "$custom_dir/plugins"
 
-  # Link loader .zshrc → ~/.zshrc
-  if [[ -f "$loader_zshrc" ]]; then
-    ome_symlink "$loader_zshrc" "$HOME/.zshrc"
-  else
-    ome_warn "No .zshrc template for loader: $loader"
-  fi
+  # Clean old module symlinks from .custom/
+  local existing
+  for existing in "$custom_dir"/*.zsh(N); do
+    if [[ -L "$existing" ]]; then
+      local link_target="$(readlink "$existing")"
+      if [[ "$link_target" == *"$OME_HOME/modules"* ]]; then
+        rm -f "$existing"
+      fi
+    fi
+  done
+
+  # Symlink module init.zsh files into .custom/
+  local mod_dir mod_name
+  for mod_dir in "$OME_HOME"/modules/*(N/); do
+    mod_name="${mod_dir:t}"
+
+    # Skip disabled modules
+    if (( ${disabled[(Ie)$mod_name]} )); then
+      ome_info "skipped (disabled): $mod_name"
+      continue
+    fi
+
+    # Only symlink if module has init.zsh
+    if [[ -f "$mod_dir/init.zsh" ]]; then
+      ln -sf "$mod_dir/init.zsh" "$custom_dir/$mod_name.zsh"
+      ome_info "enabled: $mod_name"
+    fi
+  done
 
   # Run module install.zsh files
   local install_file
-  for install_file in "$OME_HOME"/core/modules/*/install.zsh(N); do
+  for install_file in "$OME_HOME"/modules/*/install.zsh(N); do
     source "$install_file"
   done
 
@@ -35,130 +70,60 @@ ome_cmd_update() {
   ome_info "Updating oh-my-environment..."
 
   # Update ome itself
-  if git -C "$OME_HOME" pull --rebase &>/dev/null; then
-    ome_info "Repository updated."
+  local output
+  if output=$(git -C "$OME_HOME" pull --ff-only 2>&1); then
+    if [[ "$output" != *"Already up to date"* ]]; then
+      ome_info "oh-my-environment updated."
+    else
+      ome_info "oh-my-environment already up to date."
+    fi
   else
-    ome_error "Failed to update repository."
-    return 1
+    ome_warn "Failed to update ome: $output"
   fi
 
-  # Loader-specific plugin updates
-  local loader="${OME_LOADER:-zinit}"
-  case "$loader" in
-    zinit)
-      if (( ${+functions[zinit]} )); then
-        ome_info "Updating zinit plugins..."
-        zinit update --all
-      else
-        ome_warn "zinit not loaded, skipping plugin update."
+  # Update installed plugins
+  local plugin_dir
+  for plugin_dir in "$OME_HOME/.custom/plugins"/*(N/); do
+    [[ -d "$plugin_dir/.git" ]] || continue
+    local plugin_name="${plugin_dir:t}"
+    if output=$(git -C "$plugin_dir" pull 2>&1); then
+      if [[ "$output" != *"Already up to date"* ]]; then
+        ome_info "Plugin updated: $plugin_name"
       fi
-      ;;
-    plain)
-      ome_info "Updating plain plugins..."
-      local plugin_dir
-      for plugin_dir in "$OME_HOME"/.plugins/*(N/); do
-        git -C "$plugin_dir" pull --rebase &>/dev/null || true
-      done
-      ;;
-    oh-my-zsh)
-      ome_info "oh-my-zsh manages its own plugin updates."
-      ;;
-  esac
+    else
+      ome_warn "Failed to update plugin $plugin_name: $output"
+    fi
+  done
 
-  # Re-install configs
+  # Re-install (re-symlink modules)
   ome_cmd_install
 
   ome_info "Update complete."
 }
 
-ome_cmd_doctor() {
-  local errors=0 warnings=0 passed=0
-
-  ome_info "Running diagnostics..."
-  echo ""
-
-  # Check OME_HOME
-  if [[ ! -d "$OME_HOME" ]]; then
-    ome_error "[✗] OME_HOME not found: $OME_HOME"
-    (( ++errors ))
-  else
-    ome_info "[✓] OME_HOME: $OME_HOME"
-    (( ++passed ))
-  fi
-
-  # Check .zshrc symlink
-  if [[ -L "$HOME/.zshrc" ]]; then
-    local target="$(readlink "$HOME/.zshrc")"
-    if [[ "$target" == *oh-my-environment* ]]; then
-      ome_info "[✓] .zshrc → $target"
-      (( ++passed ))
-    else
-      ome_warn "[!] .zshrc points to: $target (not managed by ome)"
-      (( ++warnings ))
-    fi
-  else
-    ome_warn "[!] .zshrc is not a symlink"
-    (( ++warnings ))
-  fi
-
-  # Check loader
-  local loader="${OME_LOADER:-zinit}"
-  if [[ ! -f "$OME_HOME/loaders/$loader/loader.zsh" ]]; then
-    ome_error "[✗] Loader not found: $loader"
-    (( ++errors ))
-  else
-    ome_info "[✓] Loader: $loader"
-    (( ++passed ))
-  fi
-
-  # Check required tools
-  local tool
-  for tool in git zsh; do
-    if (( $+commands[$tool] )); then
-      ome_info "[✓] $tool: $(command $tool --version 2>&1 | head -1)"
-      (( ++passed ))
-    else
-      ome_error "[✗] $tool: not found"
-      (( ++errors ))
-    fi
-  done
-
-  # Run module doctors
-  local doctor_file result
-  for doctor_file in "$OME_HOME"/core/modules/*/doctor.zsh(N); do
-    local mod_name="${doctor_file:h:t}"
-    result=0
-    ( source "$doctor_file" ) || result=$?
-    if (( result == 0 )); then
-      (( ++passed ))
-    elif (( result == 1 )); then
-      (( ++warnings ))
-    else
-      (( ++errors ))
-    fi
-  done
-
-  # Summary
-  echo ""
-  ome_info "Doctor summary:"
-  if (( passed > 0 )); then ome_info "  [✓] $passed passed"; fi
-  if (( warnings > 0 )); then ome_warn "  [!] $warnings warning(s)"; fi
-  if (( errors > 0 )); then ome_error "  [✗] $errors error(s)"; fi
-  if (( warnings == 0 && errors == 0 )); then ome_info "  No issues found."; fi
-}
-
 # --- Dispatch ---
 
+ome_help() {
+  cat <<'EOF'
+ome — oh-my-environment tool manager
+
+Usage: ome <command>
+
+Commands:
+  install   Symlink modules into $ZSH_CUSTOM and run module setup
+  update    Pull latest ome and update all installed plugins
+
+Config repo and plugins are managed by 'omc'.
+EOF
+}
+
 case "${1:-}" in
-  install) ome_cmd_install ;;
-  update)  ome_cmd_update ;;
-  doctor)  ome_cmd_doctor ;;
+  install)  ome_cmd_install ;;
+  update)   ome_cmd_update ;;
+  --help|-h|help|"")  ome_help ;;
   *)
-    echo "Usage: ome <command>"
-    echo ""
-    echo "Commands:"
-    echo "  install           Install configs (.zshrc, module symlinks)"
-    echo "  update            Update ome + plugins + re-install configs"
-    echo "  doctor            Diagnose issues"
+    ome_error "Unknown command: $1"
+    ome_help
+    exit 1
     ;;
 esac

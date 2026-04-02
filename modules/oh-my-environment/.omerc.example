@@ -1,0 +1,11 @@
+# .omerc — oh-my-environment configuration
+# Copy this file to ~/.omerc and customize as needed.
+
+# Auto-update mode: auto | reminder | disabled
+zstyle ':ome:update' mode auto
+
+# Update frequency in days
+zstyle ':ome:update' frequency 13
+
+# Disabled modules (not symlinked into .custom/ during ome install)
+# zstyle ':ome:modules' disabled python starship
