@@ -9,8 +9,7 @@ case ":$PATH:" in
   *) PATH="$OME_HOME/bin:$PATH" ;;
 esac
 
-# Add completions to fpath
-fpath=("$OME_HOME/completions" $fpath)
+fpath=("${0:h}/completions" $fpath)
 
 # Source user's .omerc if it exists
 [[ -f "$HOME/.omerc" ]] && source "$HOME/.omerc"

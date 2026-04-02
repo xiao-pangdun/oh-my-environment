@@ -1,6 +1,8 @@
 # brew module — mirror switcher
 (( $+commands[brew] )) || return 0
 
+fpath=("${0:h}/completions" $fpath)
+
 brew-mirror() {
   local -A labels bottle_domains api_domains git_remotes core_remotes
 
@@ -87,20 +89,3 @@ brew-mirror() {
       ;;
   esac
 }
-
-_brew-mirror() {
-  local -a subcmds mirrors
-  subcmds=(
-    'status:Show current mirror configuration'
-    'list:List available mirrors'
-    'reset:Reset to default Homebrew sources'
-  )
-  mirrors=(
-    'ustc:USTC (中科大)'
-    'tuna:TUNA (清华大学)'
-    'aliyun:Aliyun (阿里云)'
-    'sjtu:SJTU (上海交大)'
-  )
-  _describe -t commands 'subcommand' subcmds -- mirrors
-}
-compdef _brew-mirror brew-mirror
