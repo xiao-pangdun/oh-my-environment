@@ -265,13 +265,15 @@ omc_cmd_sync() {
     return 1
   fi
 
-  # Pull remote changes first
-  ome_info "Pulling remote changes..."
-  local pull_output
-  if ! pull_output=$(git -C "$config_dir" pull --ff-only 2>&1); then
-    ome_error "Pull failed: $pull_output"
-    ome_error "Resolve manually in $config_dir, then re-run 'omc sync'."
-    return 1
+  # Pull remote changes first (skip if repo has no commits yet)
+  if git -C "$config_dir" rev-parse HEAD &>/dev/null; then
+    ome_info "Pulling remote changes..."
+    local pull_output
+    if ! pull_output=$(git -C "$config_dir" pull --ff-only 2>&1); then
+      ome_error "Pull failed: $pull_output"
+      ome_error "Resolve manually in $config_dir, then re-run 'omc sync'."
+      return 1
+    fi
   fi
 
   # Reconcile plugins (clone missing, delete orphaned)
