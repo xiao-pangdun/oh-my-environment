@@ -103,9 +103,9 @@ _omc_zshrc_plugin_add() {
     # Verify it's actually in plugins=() and not just mentioned elsewhere
     local in_plugins=0 found=0
     while IFS= read -r line; do
-      if [[ "$line" =~ ^[[:space:]]*plugins=\( ]]; then in_plugins=1; continue; fi
+      if [[ "$line" == *'plugins=('* ]]; then in_plugins=1; continue; fi
       if (( in_plugins )); then
-        [[ "$line" =~ \) ]] && break
+        [[ "$line" == *')'* ]] && break
         local name="${line## }"; name="${name%% }"
         [[ "$name" == "$plugin_name" ]] && found=1 && break
       fi
@@ -117,11 +117,11 @@ _omc_zshrc_plugin_add() {
   local -a third_party=()
   local in_plugins=0
   while IFS= read -r line; do
-    if [[ "$line" =~ ^[[:space:]]*plugins=\( ]]; then
+    if [[ "$line" == *'plugins=('* ]]; then
       in_plugins=1; continue
     fi
     if (( in_plugins )); then
-      [[ "$line" =~ \) ]] && break
+      [[ "$line" == *')'* ]] && break
       [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
       local name="${line## }"; name="${name%% }"
       # 3rd party = has a dir in .custom/plugins/ or is the one we're adding
@@ -147,12 +147,12 @@ _omc_zshrc_plugin_add() {
     case "$state" in
       before)
         echo "$line" >> "$tmpfile"
-        if [[ "$line" =~ ^[[:space:]]*plugins=\( ]]; then
+        if [[ "$line" == *'plugins=('* ]]; then
           state="in_plugins"
         fi
         ;;
       in_plugins)
-        if [[ "$line" =~ \) ]]; then
+        if [[ "$line" == *')'* ]]; then
           # Write 3rd party section before closing
           if (( ! wrote_tp )); then
             echo "    # 3rd party" >> "$tmpfile"
@@ -197,13 +197,13 @@ _omc_zshrc_plugin_remove() {
   local in_plugins=0
 
   while IFS= read -r line; do
-    if [[ "$line" =~ ^[[:space:]]*plugins=\( ]]; then
+    if [[ "$line" == *'plugins=('* ]]; then
       in_plugins=1
       echo "$line" >> "$tmpfile"
       continue
     fi
     if (( in_plugins )); then
-      if [[ "$line" =~ \) ]]; then
+      if [[ "$line" == *')'* ]]; then
         in_plugins=0
         echo "$line" >> "$tmpfile"
         continue
