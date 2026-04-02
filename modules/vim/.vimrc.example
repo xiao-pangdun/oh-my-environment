@@ -10,7 +10,7 @@ set clipboard=unnamed,unnamedplus         " Use system clipboard
 " --- UI ---
 syntax on                                 " Enable syntax highlighting
 set number                                " Show absolute line numbers
-set relativenumber                        " Show relative line numbers
+" set relativenumber                      " Show relative line numbers
 set cursorline                            " Highlight current line
 set showcmd                               " Show incomplete commands
 set showmode                              " Show current mode
@@ -21,6 +21,10 @@ set signcolumn=yes                        " Always show sign column
 set scrolloff=8                           " Lines above/below cursor
 set sidescrolloff=8                       " Columns left/right of cursor
 set termguicolors                         " Enable true colors
+" set colorcolumn=80                      " Show column guide at 80 chars
+" set nowrap                              " Disable line wrapping
+" set list                                " Show invisible characters
+" set listchars=tab:»·,trail:·,nbsp:·    " Customize invisible characters
 
 " --- Search ---
 set hlsearch                              " Highlight search matches
@@ -35,6 +39,7 @@ set shiftwidth=4                          " Indent width
 set softtabstop=4                         " Soft tab width
 set smartindent                           " Smart auto-indenting
 set autoindent                            " Copy indent from current line
+" set shiftround                          " Round indent to multiple of shiftwidth
 
 " --- Files ---
 set noswapfile                            " Disable swap files
@@ -51,9 +56,44 @@ set splitright                            " Vertical splits open right
 set lazyredraw                            " Skip redraws during macros
 set ttyfast                               " Faster terminal rendering
 set updatetime=300                        " Faster CursorHold events
+" set timeoutlen=500                      " Mapping timeout in ms
+" set ttimeoutlen=10                      " Key code timeout in ms
+
+" --- History ---
+" set history=1000                        " Command history size
+" set undolevels=1000                     " Undo history size
+
+" --- Folding ---
+" set foldenable                          " Enable folding
+" set foldmethod=indent                   " Fold based on indent level
+" set foldlevelstart=10                   " Start with most folds open
+
+" --- Completion ---
+" set completeopt=menuone,noinsert,noselect  " Better completion behavior
+" set shortmess+=c                        " Suppress completion messages
+
+" --- Netrw (built-in file explorer) ---
+" let g:netrw_banner=0                    " Hide banner
+" let g:netrw_liststyle=3                 " Tree view
+" let g:netrw_winsize=25                  " Window size (%)
 
 " --- Key mappings ---
 let mapleader=" "                         " Space as leader key
 nnoremap <leader>w :w<CR>                 " Quick save
 nnoremap <leader>q :q<CR>                 " Quick quit
 nnoremap <leader>h :nohlsearch<CR>        " Clear search highlights
+" nnoremap <leader>e :Explore<CR>        " Open file explorer
+"
+" Split navigation with Ctrl+hjkl
+" nnoremap <C-h> <C-w>h
+" nnoremap <C-j> <C-w>j
+" nnoremap <C-k> <C-w>k
+" nnoremap <C-l> <C-w>l
+"
+" Move lines up/down in visual mode
+" vnoremap J :m '>+1<CR>gv=gv
+" vnoremap K :m '<-2<CR>gv=gv
+"
+" Keep cursor centered when scrolling
+" nnoremap <C-d> <C-d>zz
+" nnoremap <C-u> <C-u>zz

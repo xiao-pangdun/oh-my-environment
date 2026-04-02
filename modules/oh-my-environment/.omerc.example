@@ -1,11 +1,19 @@
 # .omerc — oh-my-environment configuration
 # Copy this file to ~/.omerc and customize as needed.
 
-# Auto-update mode: auto | reminder | disabled
+# --- Auto-update ---
+
+# Update mode: controls how ome checks for updates on shell startup.
+#   auto     — pull updates automatically (default)
+#   reminder — show a reminder message to run `ome update`
+#   disabled — never check for updates
 zstyle ':ome:update' mode auto
 
-# Update frequency in days
+# How often to check for updates (in days).
 zstyle ':ome:update' frequency 13
 
-# Disabled modules (not symlinked into .custom/ during ome install)
+# --- Modules ---
+
+# Disabled modules will not be symlinked into $ZSH_CUSTOM during `ome install`.
+# List module names separated by spaces.
 # zstyle ':ome:modules' disabled python starship
