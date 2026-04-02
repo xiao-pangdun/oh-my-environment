@@ -32,7 +32,14 @@ command -v zsh >/dev/null 2>&1 || error "zsh is required but not found"
 # Check oh-my-zsh
 ZSH="${ZSH:-$HOME/.oh-my-zsh}"
 if [ ! -d "$ZSH" ]; then
-  error "oh-my-zsh is required but not found at $ZSH. Install: https://ohmyz.sh"
+  printf '\033[0;34m[ome]\033[0m oh-my-zsh not found. Install it now? [y/n] '
+  read -r answer
+  if [ "$answer" = "y" ] || [ "$answer" = "Y" ]; then
+    info "Installing oh-my-zsh..."
+    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+  else
+    error "oh-my-zsh is required. Install: https://ohmyz.sh"
+  fi
 fi
 
 # Clone ome
