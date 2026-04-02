@@ -1,0 +1,59 @@
+" --- General ---
+set nocompatible                          " Disable vi compatibility
+set encoding=utf-8                        " Internal encoding
+set fileencoding=utf-8                    " File encoding
+set backspace=indent,eol,start            " Fix backspace behavior
+set hidden                                " Allow unsaved buffer switching
+set autoread                              " Reload files changed outside vim
+set clipboard=unnamed,unnamedplus         " Use system clipboard
+
+" --- UI ---
+syntax on                                 " Enable syntax highlighting
+set number                                " Show absolute line numbers
+set relativenumber                        " Show relative line numbers
+set cursorline                            " Highlight current line
+set showcmd                               " Show incomplete commands
+set showmode                              " Show current mode
+set wildmenu                              " Enhanced command-line completion
+set laststatus=2                          " Always show status line
+set ruler                                 " Show cursor position
+set signcolumn=yes                        " Always show sign column
+set scrolloff=8                           " Lines above/below cursor
+set sidescrolloff=8                       " Columns left/right of cursor
+set termguicolors                         " Enable true colors
+
+" --- Search ---
+set hlsearch                              " Highlight search matches
+set incsearch                             " Search as you type
+set ignorecase                            " Case-insensitive search
+set smartcase                             " Case-sensitive if uppercase used
+
+" --- Indentation ---
+set expandtab                             " Use spaces instead of tabs
+set tabstop=4                             " Tab width
+set shiftwidth=4                          " Indent width
+set softtabstop=4                         " Soft tab width
+set smartindent                           " Smart auto-indenting
+set autoindent                            " Copy indent from current line
+
+" --- Files ---
+set noswapfile                            " Disable swap files
+set nobackup                              " Disable backup files
+set nowritebackup                         " Disable write backup
+set undofile                              " Persistent undo
+set undodir=~/.vim/undodir                " Undo file directory
+
+" --- Splits ---
+set splitbelow                            " Horizontal splits open below
+set splitright                            " Vertical splits open right
+
+" --- Performance ---
+set lazyredraw                            " Skip redraws during macros
+set ttyfast                               " Faster terminal rendering
+set updatetime=300                        " Faster CursorHold events
+
+" --- Key mappings ---
+let mapleader=" "                         " Space as leader key
+nnoremap <leader>w :w<CR>                 " Quick save
+nnoremap <leader>q :q<CR>                 " Quick quit
+nnoremap <leader>h :nohlsearch<CR>        " Clear search highlights
