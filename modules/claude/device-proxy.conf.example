@@ -1,0 +1,6 @@
+# Claude device-proxy binding
+# Maps hostname ($HOST) to a proxy name defined in proxies.conf
+# Format: host=proxy-name
+# Example:
+# pangdun-work=work
+# pangdun-home=home

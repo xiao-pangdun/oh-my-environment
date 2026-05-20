@@ -1,0 +1,5 @@
+# Claude proxy list
+# Format: name=url
+# Example:
+# work=http://127.0.0.1:7890
+# home=http://127.0.0.1:1087
