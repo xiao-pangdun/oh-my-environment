@@ -54,3 +54,7 @@ plaude() {
   no_proxy="${(j:,:)no_proxy}" \
   claude "${claude_args[@]}"
 }
+
+plaude-yolo() {
+  plaude --dangerously-skip-permissions "$@"
+}
