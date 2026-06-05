@@ -11,3 +11,15 @@ fi
 if [[ ! -f "$config_dir/device-proxy.conf" ]]; then
   cp "$module_dir/device-proxy.conf.example" "$config_dir/device-proxy.conf"
 fi
+
+# Bridge ~/.agents/* into ~/.claude/* so Claude Code discovers cross-tool skills/etc.
+local agent_links=(
+  "$HOME/.agents/skills:$HOME/.claude/skills"
+)
+local entry src target
+for entry in "${agent_links[@]}"; do
+  src="${entry%%:*}"
+  target="${entry##*:}"
+  [[ -e "$src" ]] || continue
+  ome_symlink "$src" "$target"
+done
