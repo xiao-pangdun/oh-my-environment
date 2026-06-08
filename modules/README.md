@@ -64,6 +64,20 @@ Runs during `ome install`. Used for first-time setup like copying `.example` fil
 [[ -f "$HOME/.zshrc" ]] || cp "${0:h}/.zshrc.example" "$HOME/.zshrc"
 ```
 
+### `uninstall.zsh`
+
+Runs during `ome uninstall`, before the `links.conf` sweep. Use it to undo anything `install.zsh` created outside the user's config repo.
+
+```zsh
+# Example: modules/claude/uninstall.zsh
+local target="$HOME/.claude/skills"
+local expected="$HOME/.agents/skills"
+if [[ -L "$target" && "$(readlink "$target")" == "$expected" ]]; then
+  rm -f "$target"
+  ome_info "Removed link: $target"
+fi
+```
+
 ## Adding a new module
 
 1. Create `modules/<name>/init.zsh` with a guard

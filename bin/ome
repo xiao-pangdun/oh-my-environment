@@ -102,40 +102,130 @@ ome_cmd_update() {
 }
 
 ome_cmd_uninstall() {
-  ome_warn "This will remove oh-my-environment, oh-my-zsh, and all linked config files."
-  printf '\033[0;31m[ome]\033[0m Continue? [y/n] '
-  read -r answer
-  [[ "$answer" == [yY] ]] || { ome_info "Aborted."; return 0; }
+  # --- Phase 1: Build preview ---
+  local -a symlinks_to_remove=() plain_leftovers=() modules_with_uninstall=() omc_backups=()
+  local links_file target uninstall_file mod_name f
 
-  # Remove all symlinks defined in links.conf files
-  local links_file target
   for links_file in "$OME_HOME"/modules/*/links.conf(N); do
     while IFS= read -r target; do
       [[ "$target" =~ ^[[:space:]]*(#|$) ]] && continue
       target="${target## }"; target="${target%% }"
       target="${target/#\~/$HOME}"
-
       if [[ -L "$target" ]]; then
-        rm -f "$target"
-        ome_info "Removed link: $target"
-      elif [[ -f "$target" ]]; then
-        rm -f "$target"
-        ome_info "Removed: $target"
+        symlinks_to_remove+=("$target")
+      elif [[ -f "$target" || -d "$target" ]]; then
+        plain_leftovers+=("$target")
       fi
     done < "$links_file"
   done
 
-  if [[ -d "$HOME/.oh-my-zsh" ]]; then
-    rm -rf "$HOME/.oh-my-zsh"
-    ome_info "Removed ~/.oh-my-zsh"
+  for uninstall_file in "$OME_HOME"/modules/*/uninstall.zsh(N); do
+    modules_with_uninstall+=("${uninstall_file:h:t}")
+  done
+
+  for f in "$HOME"/.zshrc.omc-backup*(N); do
+    omc_backups+=("$f")
+  done
+
+  local config_exists=0
+  [[ -d "$OME_HOME/.config" ]] && config_exists=1
+
+  # --- Phase 2: Print preview, prompt ---
+  ome_warn "About to uninstall oh-my-environment."
+  echo ""
+  if (( ${#modules_with_uninstall[@]} > 0 )); then
+    echo "Will run module uninstall.zsh:"
+    for mod_name in "${modules_with_uninstall[@]}"; do
+      echo "  $mod_name"
+    done
+    echo ""
+  fi
+  echo "Will remove:"
+  if (( ${#symlinks_to_remove[@]} > 0 )); then
+    for target in "${symlinks_to_remove[@]}"; do
+      echo "  $target (symlink)"
+    done
+  fi
+  if (( ${#omc_backups[@]} > 0 )); then
+    for f in "${omc_backups[@]}"; do
+      echo "  $f"
+    done
+  fi
+  echo "  $OME_HOME"
+  echo ""
+  if (( config_exists )); then
+    echo "Will preserve (moved aside):"
+    echo "  $OME_HOME/.config → ~/oh-my-environment-config/"
+    echo ""
+  fi
+  if (( ${#plain_leftovers[@]} > 0 )); then
+    echo "Will leave in place (plain files, possibly user-edited):"
+    for target in "${plain_leftovers[@]}"; do
+      echo "  $target"
+    done
+    echo ""
+  fi
+  echo "Will NOT touch:"
+  echo "  ~/.oh-my-zsh   (manage omz separately)"
+  echo "  ~/.zshrc       (your shell config — may still reference removed plugins)"
+  echo "  ~/.omerc       (your config)"
+  echo ""
+
+  printf '\033[0;31m[ome]\033[0m Continue? [y/n] '
+  read -r answer
+  [[ "$answer" == [yY] ]] || { ome_info "Aborted."; return 0; }
+
+  # --- Phase 3: Source uninstall.zsh files (before links.conf sweep) ---
+  for uninstall_file in "$OME_HOME"/modules/*/uninstall.zsh(N); do
+    source "$uninstall_file"
+  done
+
+  # --- Phase 4: Walk links.conf — remove symlinks, log plain files ---
+  for links_file in "$OME_HOME"/modules/*/links.conf(N); do
+    while IFS= read -r target; do
+      [[ "$target" =~ ^[[:space:]]*(#|$) ]] && continue
+      target="${target## }"; target="${target%% }"
+      target="${target/#\~/$HOME}"
+      if [[ -L "$target" ]]; then
+        rm -f "$target"
+        ome_info "Removed link: $target"
+      elif [[ -f "$target" || -d "$target" ]]; then
+        ome_info "Leftover plain file: $target — review and remove if not needed"
+      fi
+    done < "$links_file"
+  done
+
+  # --- Phase 5: Remove .zshrc.omc-backup* ---
+  for f in "$HOME"/.zshrc.omc-backup*(N); do
+    rm -f "$f"
+    ome_info "Removed: $f"
+  done
+
+  # --- Phase 6: Preserve config repo ---
+  if [[ -d "$OME_HOME/.config" ]]; then
+    local dest="$HOME/oh-my-environment-config"
+    if [[ -e "$dest" ]]; then
+      dest="${dest}-$(date +%Y%m%d%H%M%S)"
+    fi
+    mv "$OME_HOME/.config" "$dest"
+    ome_info "Preserved config repo at $dest"
+    ome_info "  (If you had uncommitted/unpushed changes, sort them here.)"
   fi
 
+  # --- Phase 7: Remove $OME_HOME ---
   if [[ -d "$OME_HOME" ]]; then
     rm -rf "$OME_HOME"
     ome_info "Removed $OME_HOME"
   fi
 
-  echo "\033[0;34m[ome]\033[0m Uninstall complete. Restart your shell."
+  # --- Phase 8: Final hints ---
+  echo ""
+  ome_info "Not removed:"
+  ome_info "  ~/.oh-my-zsh — to remove omz: run uninstall_oh_my_zsh"
+  ome_info "                or see https://github.com/ohmyzsh/ohmyzsh#uninstalling-oh-my-zsh"
+  ome_info "  ~/.zshrc     — references plugins that are gone; clean up the plugins=() block manually"
+  echo ""
+  ome_info "Uninstall complete. Restart your shell."
 }
 
 # --- Dispatch ---
